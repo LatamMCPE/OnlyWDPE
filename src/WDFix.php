@@ -134,35 +134,7 @@ class WDFix extends PluginBase implements Listener{
 		self::$PRODUCTION = !str_ends_with($description->getVersion(), "-dev");
 	}
 
-	/**
-	 * Function checkForUpdate
-	 * @return void
-	 */
-	private function checkForUpdate(): void{
-		$this->getServer()->getAsyncPool()->submitTask(new class($this->getDescription()->getVersion(), !WDFix::$PRODUCTION) extends AsyncTask{
-			public function __construct(protected string $version, protected bool $development) {}
-			public function onRun(): void{
-				$result = Internet::getURL("https://raw.githubusercontent.com/xxAROX/WaterdogPE-LoginExtras-Fix/" . ($this->development ? "development" : "main") . "/plugin.yml");
-				if (is_null($result)) return; // NOTE: no internet connection
-				if ($result->getCode() !== 200) return;
-				try {
-					$pluginYml = yaml_parse($result->getBody());
-				} catch (Throwable $e) {
-					return;
-				}
-				if (!$pluginYml) return;
-				$this->setResult($pluginYml["version"] ?? null);
-			}
-			public function onCompletion(): void{
-				$newVersion = $this->getResult();
-				if ($newVersion === null) return;
-				if (version_compare($newVersion, $this->version, ">")) {
-					WDFix::getInstance()->getLogger()->notice("§eA new version of §6WaterdogPE-LoginExtras-Fix§e is available!");
-					WDFix::getInstance()->getLogger()->notice("§eYou can download it from §6https://github.com/xxAROX/WaterdogPE-LoginExtras-Fix/releases/tag/" . ($this->development ? "dev" : "{$newVersion}"));
-				}
-			}
-		});
-	}
+
 
 	/**
 	 * Function onLoad
@@ -170,8 +142,6 @@ class WDFix extends PluginBase implements Listener{
 	 */
 	protected function onLoad(): void{
 		$this->saveResource("config.yml");
-		$this->checkForUpdate();
-		$this->applyVersionChanges();
 	}
 
 	/**
@@ -191,46 +161,13 @@ class WDFix extends PluginBase implements Listener{
 		}
 		if ($needServerRestart) $this->getLogger()->warning("Then restart the server!");
 		else {
-			$this->getServer()->getPluginManager()->registerEvents($this, $this);
-			if ($this->getConfig()->get("force-players-to-waterdog", true)) {
-				$this->getLogger()->alert("§cPlayers §nwill be kicked§r§c if they are not authenticated to §bWaterdog§3PE§c!§r");
-			} else {
-				$this->getLogger()->info("§aPlayers will §nnot§r§a be kicked if they are not authenticated to §bWaterdog§3PE§a!§r");
-			}
-			if (!self::$PRODUCTION) {
-				$this->getLogger()->warning("§eThis is a development version of §6{$this->getDescription()->getPrefix()}§e!");
-				PermissionManager::getInstance()->addPermission(new Permission("wdfix.command", "Allows to use the command /wdfix!", [DefaultPermissions::ROOT_OPERATOR => true]));
-				$this->getServer()->getCommandMap()->register("WDFIX", new class extends Command{
-					public function __construct(){
-						parent::__construct("wdfix", "Debug command for WDFix", "/wdfix", []);
-						$this->setPermission("wdfix.command");
-					}
-					public function execute(CommandSender $sender, string $commandLabel, array $args){
-						if (!$sender instanceof Player) {
-							$sender->sendMessage("§cYou are not connected to WaterdogPE!");
-							return;
-						}
-						$networkPlayerInfo = $sender->getNetworkSession()->getPlayerInfo();
-						$playerInfo = $sender->getPlayerInfo();
-
-						$sender->sendMessage("§eNetwork player info§r§e: §f");
-						$sender->sendMessage("§aYour IP-Address: §f" . $sender->getNetworkSession()->getIp());
-						if ($networkPlayerInfo instanceof XboxLivePlayerInfo) {
-							$sender->sendMessage("§aYour XUID: §f" . $networkPlayerInfo->getXuid());
-						}else {
-							$sender->sendMessage("§cYour XUID: §f" . "§cNot found§f");
-						}
-						$sender->sendMessage("§ePlayer info§r§e: §f");
-						$sender->sendMessage("§aYour IP-Address: §f" . $sender->getNetworkSession()->getIp());
-						if ($playerInfo instanceof XboxLivePlayerInfo) {
-							$sender->sendMessage("§aYour XUID: §f" . $playerInfo->getXuid());
-						} else {
-							$sender->sendMessage("§cYour XUID: §f" . "§cNot found§f");
-						}
-					}
-				});
-			}
-		}
+            $this->getServer()->getPluginManager()->registerEvents($this, $this);
+            if ($this->getConfig()->get("force-players-to-waterdog", true)) {
+                $this->getLogger()->alert("§cPlayers §nwill be kicked§r§c if they are not authenticated to §bWaterdog§3PE§c!§r");
+            } else {
+                $this->getLogger()->info("§aPlayers will §nnot§r§a be kicked if they are not authenticated to §bWaterdog§3PE§a!§r");
+            }
+        }
 	}
 
 	/**
@@ -252,7 +189,7 @@ class WDFix extends PluginBase implements Listener{
 				(
 					!isset($clientData["Waterdog_XUID"])
 					|| !isset($clientData["Waterdog_IP"])
-					|| !$this->checkIpAddress($event->getOrigin()->getIp()) // NOTE: Get ip-address provided from waterdog downstream connection
+                    // NOTE: Get ip-address provided from waterdog downstream connection
 				)
 				&& $this->getConfig()->get("force-players-to-waterdog", true)
 			) {
